@@ -1,45 +1,35 @@
-const { v4: uuidv4 } = require('uuid');
-const sha1 = require('sha1');
+// File: controllers/UsersController.js
+
+const redisClient = require('../utils/redis');
 const dbClient = require('../utils/db');
 
 class UsersController {
-  static async postNew(req, res) {
-    const { email, password } = req.body;
+  static async getMe(req, res) {
+    const token = req.headers['x-token'];
 
-    if (!email) {
-      return res.status(400).json({ error: 'Missing email' });
-    }
-
-    if (!password) {
-      return res.status(400).json({ error: 'Missing password' });
+    if (!token) {
+      return res.status(401).json({ error: 'Unauthorized' });
     }
 
     try {
-      const usersCollection = dbClient.db.collection('users');
+      const key = `auth_${token}`;
+      const userId = await redisClient.get(key);
 
-      // Check if email already exists
-      const existingUser = await usersCollection.findOne({ email });
-      if (existingUser) {
-        return res.status(400).json({ error: 'Already exist' });
+      if (!userId) {
+        return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      const hashedPassword = sha1(password);
+      const usersCollection = dbClient.db.collection('users');
+      const user = await usersCollection.findOne({ _id: userId });
 
-      // Create new user document
-      const newUser = {
-        email,
-        password: hashedPassword,
-        id: uuidv4(),
-      };
+      if (!user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
 
-      // Save new user to the collection
-      await usersCollection.insertOne(newUser);
-
-      // Return the new user
-      res.status(201).json({ email: newUser.email, id: newUser.id });
+      return res.status(200).json({ email: user.email, id: user._id });
     } catch (error) {
-      console.error('Error creating new user:', error);
-      res.status(500).json({ error: 'Internal Server Error' });
+      console.error('Error retrieving user:', error);
+      return res.status(500).json({ error: 'Internal Server Error' });
     }
   }
 }
