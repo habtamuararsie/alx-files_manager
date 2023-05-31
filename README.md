@@ -7,3 +7,7 @@
 + how to store data in MongoDB
 + how to store temporary data in Redis
 + how to setup and use a background worker
+
+Author 
+Habtamu Ararsie
+Getie Balew
